@@ -1,0 +1,618 @@
+services:
+  # ================================
+  # SEAWEEDFS DISTRIBUTED STORAGE
+  # ================================
+  seaweedfs-master:
+    image: chrislusf/seaweedfs:3.85
+    container_name: seaweedfs_master
+    hostname: seaweedfs-master
+    command: "master -port=9333 -mdir=/data -ip=seaweedfs-master"
+    volumes:
+      - seaweedfs_master_data:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      TZ: ${TZ:-UTC}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://seaweedfs-master:9333/cluster/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "9333:9333"
+      - "19333:19333"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  seaweedfs-volume:
+    image: chrislusf/seaweedfs:3.85
+    container_name: seaweedfs_volume
+    hostname: seaweedfs-volume
+    command: "volume -mserver=seaweedfs-master:9333 -port=8081 -dir=/data -max=2000 -ip=opi5"
+    volumes:
+      - seaweedfs_volume_data:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      TZ: ${TZ:-UTC}
+    depends_on:
+      seaweedfs-master:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://seaweedfs-volume:8081/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - web
+    ports:
+      - "8081:8081"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  seaweedfs-filer:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs_filer
+    hostname: seaweedfs-filer
+    command: "filer -master=seaweedfs-master:9333 -ip=seaweedfs-filer -port=8888 -port.grpc=18888 -metricsPort=9331"
+    networks:
+      - web
+    ports:
+      - "8888:8888"
+      - "18888:18888"
+    volumes:
+      - /home/egk/seaweedfs/filer:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-admin}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      AWS_REGION: ${S3_REGION:-us-east-1}
+      TZ: ${TZ:-UTC}
+    depends_on:
+      seaweedfs-master:
+        condition: service_healthy
+      seaweedfs-volume:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  seaweedfs-mount:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs_mount
+    hostname: seaweedfs-mount
+    command: "mount -filer=seaweedfs-filer:8888 -dir=/mnt/seaweedfs -filer.path=/ -allowOthers"
+    networks:
+      - web
+    privileged: true
+    volumes:
+      - /mnt/seaweedfs:/mnt/seaweedfs:shared
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      TZ: ${TZ:-UTC}
+    depends_on:
+      seaweedfs-filer:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "mountpoint", "-q", "/mnt/seaweedfs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================
+  # REVERSE PROXY & TLS TERMINATION
+  # ================================
+  # ================================
+  # DATABASE LAYER
+  # ================================
+  immich-postgres:
+    image: docker.io/tensorchord/pgvecto-rs:pg16-v0.3.0
+    container_name: immich_postgres
+    hostname: immich-postgres
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-immich}
+      POSTGRES_DB: ${POSTGRES_DB:-immich}
+      POSTGRES_INITDB_ARGS: "--data-checksums --auth-host=trust"
+      PGDATA: /var/lib/postgresql/data/pgdata
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /mnt/nvme/immich-db:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-immich} -d ${POSTGRES_DB:-immich} || exit 1"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 60s
+    command: >
+      postgres
+      -c shared_preload_libraries=vectors.so
+      -c search_path='"$$user", public, vectors'
+      -c logging_collector=on
+      -c max_wal_size=2GB
+      -c shared_buffers=512MB
+      -c wal_compression=on
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=500
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c huge_pages=off
+      -c min_wal_size=1GB
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  immich-redis:
+    image: redis:7.2-alpine
+    container_name: immich_redis
+    hostname: immich-redis
+    environment:
+      TZ: ${TZ:-UTC}
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - /mnt/nvme/immich-redis:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nextcloud-db:
+    image: mariadb:11.4
+    container_name: nextcloud_db
+    hostname: nextcloud-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /mnt/nvme/nextcloud-db:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+    command: >
+      --transaction-isolation=READ-COMMITTED
+      --log-bin=binlog
+      --binlog-format=ROW
+      --innodb-file-per-table=1
+      --skip-innodb-read-only-compressed
+      --innodb-buffer-pool-size=512M
+      --innodb-log-file-size=128M
+      --max-connections=200
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================
+  # APPLICATION LAYER
+  # ================================
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    container_name: immich_server
+    hostname: immich-server
+    environment:
+      # Database Configuration
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: ${POSTGRES_USER:-immich}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_DATABASE_NAME: ${POSTGRES_DB:-immich}
+      # Redis Configuration
+      REDIS_HOSTNAME: immich-redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # Server Configuration
+      IMMICH_HOST: ${IMMICH_HOST:-0.0.0.0}
+      IMMICH_PORT: ${IMMICH_PORT:-2283}
+      UPLOAD_LOCATION: /usr/src/app/upload
+      # S3/Object Storage Configuration - DISABLED: Using reliable FUSE mount instead
+      # STORAGE_TYPE: s3
+      # S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-admin}
+      # S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+      # S3_ENDPOINT: http://host.docker.internal:8333
+      # S3_BUCKET: ${S3_BUCKET:-immich}
+      # S3_FORCE_PATH_STYLE: "true"
+      # S3_REGION: ${S3_REGION:-us-east-1}
+      # Performance & Optimization
+      NODE_ENV: production
+      LOG_LEVEL: log
+      TZ: ${TZ:-UTC}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Fallback FUSE mount (if S3 fails, Immich can still access via FUSE)
+      - /mnt/seaweedfs/immich:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      # Database dependencies
+      immich-postgres:
+        condition: service_healthy
+      immich-redis:
+        condition: service_healthy
+      # CRITICAL: Storage dependencies
+      seaweedfs-filer:
+        condition: service_healthy
+      seaweedfs-mount:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2283/api/server-info/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Longer start period due to dependencies
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=immich"
+      - "tsdproxy.container_port=2283"
+      - "tsdproxy.scheme=http"
+      - "tsdproxy.ephemeral=true"
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  nextcloud:
+    image: nextcloud:31-apache
+    container_name: nextcloud
+    hostname: nextcloud
+    environment:
+      MYSQL_HOST: nextcloud-db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_DOMAIN:-nextcloud.velociraptor-scylla.ts.net}
+      OVERWRITEPROTOCOL: https
+      OVERWRITEHOST: ${NEXTCLOUD_DOMAIN:-nextcloud.velociraptor-scylla.ts.net}
+      REDIS_HOST: immich-redis
+      REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
+      PHP_MEMORY_LIMIT: 1024M
+      PHP_UPLOAD_LIMIT: 16G
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /mnt/seaweedfs/nextcloud:/var/www/html
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      # Database dependencies
+      nextcloud-db:
+        condition: service_healthy
+      immich-redis:
+        condition: service_healthy
+      # CRITICAL: Storage dependencies
+      seaweedfs-mount:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Longer start period due to dependencies
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=nextcloud"
+      - "tsdproxy.container_port=80"
+      - "tsdproxy.scheme=http"
+      - "tsdproxy.ephemeral=true"
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  vaultwarden:
+    image: vaultwarden/server:1.32.0-alpine
+    container_name: vaultwarden
+    hostname: vaultwarden
+    environment:
+      WEBSOCKET_ENABLED: "true"
+      SIGNUPS_ALLOWED: "true"
+      INVITATIONS_ALLOWED: "true"
+      SHOW_PASSWORD_HINT: "false"
+      DOMAIN: ${VAULTWARDEN_DOMAIN}
+      ROCKET_PORT: 80
+      EMERGENCY_ACCESS_ALLOWED: "true"
+      SENDS_ALLOWED: "true"
+      WEB_VAULT_ENABLED: "true"
+      DATABASE_MAX_CONNS: 10
+      # Enable admin panel for password reset - from .env file
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      # Fix for Android app compatibility
+      REQUIRE_DEVICE_EMAIL: "false"
+      DISABLE_2FA_REMEMBER: "false"
+      PASSWORD_ITERATIONS: 600000
+      # Additional compatibility settings
+      EXTENDED_LOGGING: "true"
+      LOG_LEVEL: "info"
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /mnt/nvme/vaultwarden-data:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/alive"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=vaultwarden"
+      - "tsdproxy.container_port=80"
+      - "tsdproxy.scheme=http"
+      - "tsdproxy.websocket_port=3012"
+      - "tsdproxy.websocket_path=/notifications/hub"
+      - "tsdproxy.ephemeral=true"
+    restart: always
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2024.8
+    container_name: homeassistant
+    hostname: homeassistant
+    privileged: true
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - /home/egk/homeassist/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+      - /dev:/dev
+    ports:
+      - "8123:8123"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    labels:
+      - "tsdproxy.enable=true"
+      - "tsdproxy.name=homeassistcanada"
+      - "tsdproxy.container_port=8123"
+      - "tsdproxy.scheme=http"
+      - "tsdproxy.ephemeral=true"
+    restart: unless-stopped
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================
+  # MONITORING & MAINTENANCE
+  # ================================
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    hostname: watchtower
+    environment:
+      TZ: ${TZ:-UTC}
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_REMOVE_VOLUMES: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "true"
+      WATCHTOWER_SCHEDULE: "0 0 4 * * *"
+      WATCHTOWER_NOTIFICATIONS: log
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ================================
+  # TAILSCALE PROXY SERVICE
+  # ================================
+  tsdproxy:
+    image: almeidapaulopt/tsdproxy:1.2.1
+    container_name: tsdproxy
+    hostname: tsdproxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/egk/tsdproxy/datadir:/data
+      - /home/egk/tsdproxy/config:/config
+    ports:
+      - "8082:8080"
+    environment:
+      TAILSCALE_AUTH_KEY: ${TAILSCALE_AUTH_KEY}
+      TZ: ${TZ:-UTC}
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    depends_on:
+      - vaultwarden
+      - immich-server
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  immich_data:
+    driver: local
+  nextcloud_data:
+    driver: local
+  vaultwarden_data:
+    driver: local
+  home_assistant_config:
+    driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  seaweedfs_master_data:
+    driver: local
+  seaweedfs_volume_data:
+    driver: local
+  seaweedfs_filer_data:
+    driver: local
+
+networks:
+  web:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-web
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+          gateway: 172.25.0.1
