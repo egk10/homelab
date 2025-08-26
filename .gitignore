@@ -9,6 +9,15 @@ scripts/mount_cephfs_example.sh
 scripts/mount-s3fs.sh
 s3fs-*.service
 
+# Ceph configuration files with sensitive data
+ceph.client.admin.keyring
+ceph.conf
+ceph_integration_README.md
+scripts/install_ceph_admin_on_laptop.sh
+verify_ceph_storage.sh
+ceph.client.admin.keyring
+ceph.conf
+
 # Docker volumes
 docker-volumes/
 tsdproxy/datadir/

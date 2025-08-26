@@ -1,0 +1,4 @@
+# minimal ceph.conf template
+[global]
+	fsid = your-cluster-fsid-here
+	mon_host = [v2:your-monitor-ip:3300/0,v1:your-monitor-ip:6789/0]
