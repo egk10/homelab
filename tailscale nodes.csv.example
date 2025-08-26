@@ -1,0 +1,4 @@
+Device name,IP address,Tailscale IP,Last seen,OS,User,Key expiry,Auto updates,Machine type,Ephemeral,Collect debug logs,Lock/unlock,Edit route settings,Remove device
+example-device1,192.168.1.100,100.90.57.27,2025-08-26T10:30:00Z,Linux,your-user,2026-08-26,Enabled,Server,No,Disabled,Unlocked,,
+example-device2,192.168.1.101,100.90.57.28,2025-08-26T10:25:00Z,Linux,your-user,2026-08-26,Enabled,Server,No,Disabled,Unlocked,,
+homelab-server,192.168.1.200,100.90.57.29,2025-08-26T10:35:00Z,Linux,your-user,2026-08-26,Enabled,Server,No,Disabled,Unlocked,,

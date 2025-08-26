@@ -1,0 +1,4 @@
+# Tailscale Auth Key
+# Replace this with your actual Tailscale auth key
+# Get your auth key from: https://login.tailscale.com/admin/settings/keys
+tskey-auth-xxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

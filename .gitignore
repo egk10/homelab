@@ -1,6 +1,8 @@
 # Environment files with secrets
 .env
+docker-compose.yml
 tsdproxy/config/authkey
+tailscale nodes.csv
 
 # Docker volumes
 docker-volumes/
