@@ -14,7 +14,7 @@ HA_DATA_VOLUME="homelab_homeassistant_config"
 HA_CONTAINER="homeassistant"
 
 # S3 Configuration
-S3_ENDPOINT="http://100.90.57.27:80"
+S3_ENDPOINT="http://your-ceph-rgw-ip:80"
 S3_ACCESS_KEY="uJ5CDvsCvVWTeCSBUUrQ"
 S3_SECRET_KEY="Eg4qUsGsVu4gEXWsHpIv5xZ2Ao7Xe9AJefQMdLIw"
 S3_BUCKET="homeassistant-backups"
