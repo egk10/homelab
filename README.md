@@ -34,7 +34,10 @@ cd homelab
 
 # 2. Configure environment
 cp .env.example .env
-# Edit .env with your Ceph and Tailscale credentials
+cp docker-compose.example.yml docker-compose.yml
+cp "tailscale nodes.csv.example" "tailscale nodes.csv"
+cp tsdproxy/config/authkey.example tsdproxy/config/authkey
+# Edit all files with your actual credentials and configuration
 
 # 3. Install S3FS services
 sudo cp s3fs-*.service /etc/systemd/system/
@@ -46,24 +49,26 @@ sudo systemctl enable s3fs-nextcloud-data.service s3fs-immich.service s3fs-vault
 ```
 
 ### Access Your Services
-- **Nextcloud**: https://nextcloud.velociraptor-scylla.ts.net
-- **Immich**: https://immich.velociraptor-scylla.ts.net  
-- **Vaultwarden**: https://vaultwarden.velociraptor-scylla.ts.net
-- **Home Assistant**: https://homeassistant.velociraptor-scylla.ts.net
+- **Nextcloud**: https://nextcloud.your-tailscale-domain.ts.net
+- **Immich**: https://immich.your-tailscale-domain.ts.net  
+- **Vaultwarden**: https://vaultwarden.your-tailscale-domain.ts.net
+- **Home Assistant**: https://homeassistant.your-tailscale-domain.ts.net
 
 ## 📁 Repository Structure
 
 ```
 homelab/
 ├── 📋 PRODUCTION_READY.md          # Complete production documentation
-├── 🐳 docker-compose.yml           # Service orchestration
-├── ⚙️ .env                         # Environment configuration
+├── 🐳 docker-compose.example.yml   # Service template (copy to docker-compose.yml)
+├── ⚙️ .env.example                 # Environment template (copy to .env)
 ├── 🛡️ safe-compose.sh              # Safe container management
 ├── 🔧 s3fs-*.service               # S3FS auto-mount services
 ├── 🧪 test3_post_reboot.sh         # Post-reboot verification
 ├── ✅ verify_ceph_storage.sh       # Storage validation
 ├── 🌐 test_tailscale_domains.sh    # Domain access testing
-├── 🔧 tsdproxy/                    # Tailscale proxy configuration
+├── 🔧 tsdproxy/
+│   └── config/
+│       └── authkey.example         # Tailscale auth template
 └── 📜 scripts/                     # Operational scripts
     ├── backup_vaultwarden.sh       # Automated backups
     ├── backup_homeassistant.sh
@@ -88,7 +93,26 @@ homelab/
 - **No Port Forwarding**: All external access through secure VPN
 - **Service Isolation**: Container-based architecture
 
-## 🔄 Operations
+## � Security & Configuration
+
+### Required Configuration Files
+This repository uses example files to protect sensitive information:
+
+```bash
+# Copy and customize these files with your actual values:
+cp .env.example .env                           # Database passwords, tokens
+cp docker-compose.example.yml docker-compose.yml  # Service configuration  
+cp "tailscale nodes.csv.example" "tailscale nodes.csv"  # Device information
+cp tsdproxy/config/authkey.example tsdproxy/config/authkey  # Tailscale auth
+```
+
+### Security Features
+- **Tailscale VPN**: Encrypted access from anywhere
+- **No Port Forwarding**: All external access through secure VPN
+- **Service Isolation**: Container-based architecture
+- **Credential Protection**: Sensitive files in .gitignore
+
+## �🔄 Operations
 
 ### Daily Management
 ```bash
