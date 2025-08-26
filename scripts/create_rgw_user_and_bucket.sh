@@ -20,7 +20,7 @@ EOF
 }
 
 # Defaults
-UID="immich"
+RGW_UID="immich"
 DISPLAY_NAME="Immich user"
 BUCKET="immich"
 ACCESS_KEY=""
@@ -30,7 +30,7 @@ DRY_RUN=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --uid) UID="$2"; shift 2;;
+  --uid) RGW_UID="$2"; shift 2;;
     --display-name) DISPLAY_NAME="$2"; shift 2;;
     --bucket) BUCKET="$2"; shift 2;;
     --access-key) ACCESS_KEY="$2"; shift 2;;
@@ -46,31 +46,31 @@ command -v radosgw-admin >/dev/null 2>&1 || { echo "radosgw-admin not found in P
 command -v aws >/dev/null 2>&1 || echo "aws CLI not found; bucket creation step will be skipped."
 command -v jq >/dev/null 2>&1 || echo "jq not found; output parsing will be raw JSON."
 
-echo "Creating RGW user: uid=$UID display-name='$DISPLAY_NAME'"
+echo "Creating RGW user: uid=$RGW_UID display-name='$DISPLAY_NAME'"
 if [ -n "$ACCESS_KEY" ] && [ -n "$SECRET_KEY" ]; then
   echo "Using provided access/secret keys"
   if [ "$DRY_RUN" = true ]; then
-    echo "DRY RUN - would run: radosgw-admin user create --uid=$UID --display-name=\"$DISPLAY_NAME\" --access-key=$ACCESS_KEY --secret=$SECRET_KEY"
+    echo "DRY RUN - would run: radosgw-admin user create --uid=$RGW_UID --display-name=\"$DISPLAY_NAME\" --access-key=$ACCESS_KEY --secret=$SECRET_KEY"
   else
-    sudo radosgw-admin user create --uid="$UID" --display-name="$DISPLAY_NAME" --access-key="$ACCESS_KEY" --secret="$SECRET_KEY" > "/tmp/${UID}-user.json"
+    sudo radosgw-admin user create --uid="$RGW_UID" --display-name="$DISPLAY_NAME" --access-key="$ACCESS_KEY" --secret="$SECRET_KEY" > "/tmp/${RGW_UID}-user.json"
   fi
 else
   if [ "$DRY_RUN" = true ]; then
-    echo "DRY RUN - would run: radosgw-admin user create --uid=$UID --display-name=\"$DISPLAY_NAME\""
+    echo "DRY RUN - would run: radosgw-admin user create --uid=$RGW_UID --display-name=\"$DISPLAY_NAME\""
   else
-    sudo radosgw-admin user create --uid="$UID" --display-name="$DISPLAY_NAME" > "/tmp/${UID}-user.json"
+    sudo radosgw-admin user create --uid="$RGW_UID" --display-name="$DISPLAY_NAME" > "/tmp/${RGW_UID}-user.json"
   fi
 fi
 
-if [ -f "/tmp/${UID}-user.json" ]; then
-  echo "User JSON written to /tmp/${UID}-user.json"
+if [ -f "/tmp/${RGW_UID}-user.json" ]; then
+  echo "User JSON written to /tmp/${RGW_UID}-user.json"
   if command -v jq >/dev/null 2>&1; then
-    ACCESS_KEY_OUT=$(jq -r '.keys[0].access_key' /tmp/${UID}-user.json)
-    SECRET_KEY_OUT=$(jq -r '.keys[0].secret_key' /tmp/${UID}-user.json)
+    ACCESS_KEY_OUT=$(jq -r '.keys[0].access_key' /tmp/${RGW_UID}-user.json)
+    SECRET_KEY_OUT=$(jq -r '.keys[0].secret_key' /tmp/${RGW_UID}-user.json)
     echo "Access Key: $ACCESS_KEY_OUT"
     echo "Secret Key: $SECRET_KEY_OUT"
   else
-    echo "Contents of /tmp/${UID}-user.json:"; sed -n '1,200p' /tmp/${UID}-user.json
+    echo "Contents of /tmp/${RGW_UID}-user.json:"; sed -n '1,200p' /tmp/${RGW_UID}-user.json
   fi
 else
   echo "No user JSON found (dry-run or failure)."

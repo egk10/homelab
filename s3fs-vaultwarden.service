@@ -1,0 +1,17 @@
+[Unit]
+Description=S3FS mount for Vaultwarden data
+After=network-online.target
+Wants=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p /mnt/s3/vaultwarden
+ExecStart=/usr/bin/s3fs backup-vaultwarden /mnt/s3/vaultwarden -o passwd_file=/etc/passwd-s3fs -o url=http://100.90.57.27:80 -o use_path_request_style -o uid=1000 -o gid=1000 -o allow_other -o nonempty
+ExecStop=/bin/umount /mnt/s3/vaultwarden
+TimeoutStartSec=30
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

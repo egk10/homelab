@@ -1,0 +1,15 @@
+[Unit]
+Description=S3FS mount for Nextcloud user data only
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+ExecStartPre=/bin/mkdir -p /mnt/s3fs/nextcloud-data
+ExecStart=/usr/bin/s3fs nextcloud-data /mnt/s3fs/nextcloud-data -o passwd_file=/etc/passwd-s3fs -o url=http://100.90.57.27:80 -o use_path_request_style -o allow_other -o uid=33 -o gid=33 -o nonempty
+ExecStop=/bin/umount /mnt/s3fs/nextcloud-data
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

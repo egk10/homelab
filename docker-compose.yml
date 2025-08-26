@@ -1,153 +1,9 @@
 services:
-  # ================================
-  # SEAWEEDFS DISTRIBUTED STORAGE
-  # ================================
-  seaweedfs-master:
-    image: chrislusf/seaweedfs:3.85
-    container_name: seaweedfs_master
-    hostname: seaweedfs-master
-    command: "master -port=9333 -mdir=/data -ip=seaweedfs-master"
-    volumes:
-      - seaweedfs_master_data:/data
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      TZ: ${TZ:-UTC}
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://seaweedfs-master:9333/cluster/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-    networks:
-      - web
-    ports:
-      - "9333:9333"
-      - "19333:19333"
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  seaweedfs-volume:
-    image: chrislusf/seaweedfs:3.85
-    container_name: seaweedfs_volume
-    hostname: seaweedfs-volume
-    command: "volume -mserver=seaweedfs-master:9333 -port=8081 -dir=/data -max=2000 -ip=opi5"
-    volumes:
-      - seaweedfs_volume_data:/data
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      TZ: ${TZ:-UTC}
-    depends_on:
-      seaweedfs-master:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://seaweedfs-volume:8081/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-    networks:
-      - web
-    ports:
-      - "8081:8081"
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  seaweedfs-filer:
-    image: chrislusf/seaweedfs:latest
-    container_name: seaweedfs_filer
-    hostname: seaweedfs-filer
-    command: "filer -master=seaweedfs-master:9333 -ip=seaweedfs-filer -port=8888 -port.grpc=18888 -metricsPort=9331"
-    networks:
-      - web
-    ports:
-      - "8888:8888"
-      - "18888:18888"
-    volumes:
-      - /home/egk/seaweedfs/filer:/data
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-admin}
-      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
-      AWS_REGION: ${S3_REGION:-us-east-1}
-      TZ: ${TZ:-UTC}
-    depends_on:
-      seaweedfs-master:
-        condition: service_healthy
-      seaweedfs-volume:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8888/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  seaweedfs-mount:
-    image: chrislusf/seaweedfs:latest
-    container_name: seaweedfs_mount
-    hostname: seaweedfs-mount
-    command: "mount -filer=seaweedfs-filer:8888 -dir=/mnt/seaweedfs -filer.path=/ -allowOthers"
-    networks:
-      - web
-    privileged: true
-    volumes:
-      - /mnt/seaweedfs:/mnt/seaweedfs:shared
-      - /etc/localtime:/etc/localtime:ro
-    environment:
-      TZ: ${TZ:-UTC}
-    depends_on:
-      seaweedfs-filer:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "mountpoint", "-q", "/mnt/seaweedfs"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  # Ceph is used for object and filesystem storage in this deployment.
+  # The lab's production-ready Ceph cluster (RGW + CephFS) is expected to be mounted and available on the host.
+  # - Mount CephFS on the Docker host at /mnt/ceph (see scripts/mount_cephfs_example.sh)
+  # - Create RGW user and bucket with scripts/create_rgw_user_and_bucket.sh and populate .env with CEPH_S3_* values
+  # The following services in this compose file will use /mnt/ceph for persistent data.
 
   # ================================
   # REVERSE PROXY & TLS TERMINATION
@@ -170,7 +26,7 @@ services:
       - /mnt/nvme/immich-db:/var/lib/postgresql/data
       - /etc/localtime:/etc/localtime:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-immich} -d ${POSTGRES_DB:-immich} || exit 1"]
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-immich}", "-d", "${POSTGRES_DB:-immich}"]
       interval: 30s
       timeout: 20s
       retries: 3
@@ -263,7 +119,7 @@ services:
       --transaction-isolation=READ-COMMITTED
       --log-bin=binlog
       --binlog-format=ROW
-      --innodb-file-per-table=1
+
       --skip-innodb-read-only-compressed
       --innodb-buffer-pool-size=512M
       --innodb-log-file-size=128M
@@ -308,16 +164,6 @@ services:
       # Server Configuration
       IMMICH_HOST: ${IMMICH_HOST:-0.0.0.0}
       IMMICH_PORT: ${IMMICH_PORT:-2283}
-      UPLOAD_LOCATION: /usr/src/app/upload
-  # S3/Object Storage Configuration - Ceph RGW (enable to store photos in Ceph)
-  STORAGE_TYPE: s3
-  S3_ACCESS_KEY_ID: ${CEPH_S3_ACCESS_KEY_ID:-admin}
-  S3_SECRET_ACCESS_KEY: ${CEPH_S3_SECRET_ACCESS_KEY:-changeme}
-  # Example RGW endpoint. Use http(s) and port your RGW serves on. Replace 'rgw-host' with your RGW reachable hostname.
-  S3_ENDPOINT: ${CEPH_S3_ENDPOINT:-http://rgw-host:80}
-  S3_BUCKET: ${CEPH_S3_BUCKET:-immich}
-  S3_FORCE_PATH_STYLE: "true"
-  S3_REGION: ${CEPH_S3_REGION:-us-east-1}
       # Performance & Optimization
       NODE_ENV: production
       LOG_LEVEL: log
@@ -325,24 +171,20 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      # Fallback FUSE mount (if S3 fails, Immich can still access via FUSE)
-      - /mnt/seaweedfs/immich:/usr/src/app/upload
+      # S3FS-mounted storage (photos stored in Ceph S3 via S3FS)
+      - /mnt/s3fs/immich:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "2283:2283"
     depends_on:
       # Database dependencies
       immich-postgres:
         condition: service_healthy
       immich-redis:
         condition: service_healthy
-      # CRITICAL: Storage dependencies
-      seaweedfs-filer:
-        condition: service_healthy
+  # CRITICAL: ensure CephFS is mounted at /mnt/ceph on the Docker host before starting this service
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2283/api/server-info/ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s  # Longer start period due to dependencies
+      disable: true
     labels:
       - "tsdproxy.enable=true"
       - "tsdproxy.name=immich"
@@ -368,11 +210,17 @@ services:
     image: nextcloud:31-apache
     container_name: nextcloud
     hostname: nextcloud
+    init: true
+    tty: false
+    stdin_open: false
     environment:
       MYSQL_HOST: nextcloud-db
       MYSQL_DATABASE: nextcloud
       MYSQL_USER: nextcloud
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Admin account configuration
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-admin}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
       NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_DOMAIN:-nextcloud.velociraptor-scylla.ts.net}
       OVERWRITEPROTOCOL: https
       OVERWRITEHOST: ${NEXTCLOUD_DOMAIN:-nextcloud.velociraptor-scylla.ts.net}
@@ -380,25 +228,31 @@ services:
       REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
       PHP_MEMORY_LIMIT: 1024M
       PHP_UPLOAD_LIMIT: 16G
+      # Performance optimizations
+      APACHE_DISABLE_REWRITE_IP: 1
+      NEXTCLOUD_UPDATE: 1
+      SMTP_SECURE: ""
+      # Startup performance improvements
+      NC_default_phone_region: US
       TZ: ${TZ:-UTC}
     volumes:
-      - /mnt/ceph/nextcloud:/var/www/html
+      # Application files in local Docker volume (fast access)
+      - nextcloud_app:/var/www/html
+      # User data in S3FS mount (Ceph S3 storage)
+      - /mnt/s3fs/nextcloud-data:/var/www/html/data
       - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8081:80"
     depends_on:
       # Database dependencies
       nextcloud-db:
         condition: service_healthy
       immich-redis:
         condition: service_healthy
-      # CRITICAL: Storage dependencies
-      seaweedfs-mount:
-        condition: service_healthy
+    # CRITICAL: Ensure S3FS mount is available before starting
+    # If S3FS mount fails, container will not start (prevents local storage fallback)
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/status.php"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s  # Longer start period due to dependencies
+      disable: true
     labels:
       - "tsdproxy.enable=true"
       - "tsdproxy.name=nextcloud"
@@ -435,6 +289,17 @@ services:
       SENDS_ALLOWED: "true"
       WEB_VAULT_ENABLED: "true"
       DATABASE_MAX_CONNS: 10
+      # Mobile app compatibility fixes
+      WEBSOCKET_ADDRESS: "0.0.0.0"
+      WEBSOCKET_PORT: 3012
+      PUSH_ENABLED: "false"
+      PUSH_INSTALLATION_ID: ""
+      PUSH_INSTALLATION_KEY: ""
+      # API compatibility
+      ORG_EVENTS_ENABLED: "true"
+      EVENTS_DAYS_RETAIN: 365
+      # Mobile sync improvements
+      DATABASE_POOL_SIZE: 20
       # Enable admin panel for password reset - from .env file
       ADMIN_TOKEN: ${ADMIN_TOKEN}
       # Fix for Android app compatibility
@@ -445,11 +310,21 @@ services:
       EXTENDED_LOGGING: "true"
       LOG_LEVEL: "info"
       TZ: ${TZ:-UTC}
+      # Mobile app sync fixes
+      IP_HEADER: "X-Forwarded-For"
+      ICON_REDIRECT_CODE: "302"
+      # Fix mobile sync issues
+      DISABLE_ICON_DOWNLOAD: "false"
+      RELOAD_TEMPLATES: "true"
     volumes:
-      - /mnt/ceph/vaultwarden:/data
+      # Use S3 mounted storage instead of local volumes
+      - /mnt/s3/vaultwarden:/data
       - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "8083:80"
+      - "3012:3012"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/alive"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/alive"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -485,7 +360,7 @@ services:
     environment:
       TZ: ${TZ:-UTC}
     volumes:
-      - /home/egk/homeassist/config:/config
+      - homeassistant_config:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
       - /dev:/dev
@@ -499,7 +374,7 @@ services:
       start_period: 120s
     labels:
       - "tsdproxy.enable=true"
-      - "tsdproxy.name=homeassistcanada"
+      - "tsdproxy.name=homeassistant"
       - "tsdproxy.container_port=8123"
       - "tsdproxy.scheme=http"
       - "tsdproxy.ephemeral=true"
@@ -531,7 +406,10 @@ services:
       WATCHTOWER_REMOVE_VOLUMES: "true"
       WATCHTOWER_INCLUDE_STOPPED: "true"
       WATCHTOWER_SCHEDULE: "0 0 4 * * *"
-      WATCHTOWER_NOTIFICATIONS: log
+      WATCHTOWER_DEBUG: "true"
+      WATCHTOWER_LOG_LEVEL: "info"
+      # Remove problematic notification setting
+      WATCHTOWER_MONITOR_ONLY: "false"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/localtime:/etc/localtime:ro
@@ -554,17 +432,16 @@ services:
   # TAILSCALE PROXY SERVICE
   # ================================
   tsdproxy:
-    image: almeidapaulopt/tsdproxy:1.2.1
+    image: almeidapaulopt/tsdproxy:1
     container_name: tsdproxy
     hostname: tsdproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/egk/tsdproxy/datadir:/data
-      - /home/egk/tsdproxy/config:/config
+      - ./tsdproxy/datadir:/data
+      - ./tsdproxy/config:/config
     ports:
       - "8082:8080"
     environment:
-      TAILSCALE_AUTH_KEY: ${TAILSCALE_AUTH_KEY}
       TZ: ${TZ:-UTC}
     cap_add:
       - NET_ADMIN
@@ -591,6 +468,8 @@ volumes:
     driver: local
   nextcloud_data:
     driver: local
+  nextcloud_app:
+    driver: local
   vaultwarden_data:
     driver: local
   home_assistant_config:
@@ -599,12 +478,9 @@ volumes:
     driver: local
   redis_data:
     driver: local
-  seaweedfs_master_data:
+  homeassistant_config:
     driver: local
-  seaweedfs_volume_data:
-    driver: local
-  seaweedfs_filer_data:
-    driver: local
+  # Ceph-backed directories are used instead of SeaweedFS volumes
 
 networks:
   web:

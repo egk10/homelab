@@ -3,6 +3,7 @@
 
 # Docker volumes
 docker-volumes/
+tsdproxy/datadir/
 
 # Logs
 *.log
