@@ -1,0 +1,14 @@
+[Unit]
+Description=S3FS mount for Nextcloud data (Ceph S3)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/s3fs nextcloud-data /mnt/s3fs/nextcloud-data -o passwd_file=/home/your-user/.passwd-s3fs -o url=http://your-ceph-rgw-ip:80 -o use_path_request_style -o allow_other
+ExecStop=/bin/fusermount -u /mnt/s3fs/nextcloud-data
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

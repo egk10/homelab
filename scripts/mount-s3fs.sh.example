@@ -1,0 +1,65 @@
+#!/bin/bash
+# Mount S3FS for homelab services using Ceph RGW
+# Replace the values below with your actual Ceph configuration
+
+# Ceph RGW Configuration - Replace with your actual values
+CEPH_RGW_URL="http://your-ceph-rgw-ip:80"
+S3FS_PASSWORD_FILE="/home/your-user/.passwd-s3fs"
+
+# Create password file if it doesn't exist
+# Format: bucket_name:access_key:secret_key
+if [ ! -f "$S3FS_PASSWORD_FILE" ]; then
+    echo "Creating S3FS password file template..."
+    cat > "$S3FS_PASSWORD_FILE" << EOF
+# S3FS Password file format:
+# bucket_name:access_key:secret_key
+nextcloud-data:YOUR_ACCESS_KEY:YOUR_SECRET_KEY
+immich-uploads:YOUR_ACCESS_KEY:YOUR_SECRET_KEY
+vaultwarden-backups:YOUR_ACCESS_KEY:YOUR_SECRET_KEY
+EOF
+    chmod 600 "$S3FS_PASSWORD_FILE"
+    echo "Password file created at $S3FS_PASSWORD_FILE - please edit with your credentials"
+    exit 1
+fi
+
+# Mount function
+mount_s3fs() {
+    local bucket=$1
+    local mount_point=$2
+    
+    echo "Mounting $bucket to $mount_point..."
+    
+    # Create mount point if it doesn't exist
+    sudo mkdir -p "$mount_point"
+    
+    # Mount with S3FS
+    s3fs "$bucket" "$mount_point" \
+        -o passwd_file="$S3FS_PASSWORD_FILE" \
+        -o url="$CEPH_RGW_URL" \
+        -o use_path_request_style \
+        -o allow_other \
+        -o uid=$(id -u) \
+        -o gid=$(id -g)
+    
+    if [ $? -eq 0 ]; then
+        echo "Successfully mounted $bucket"
+    else
+        echo "Failed to mount $bucket"
+        return 1
+    fi
+}
+
+# Mount all buckets
+echo "Starting S3FS mounts for homelab services..."
+
+mount_s3fs "nextcloud-data" "/mnt/s3fs/nextcloud-data"
+mount_s3fs "immich-uploads" "/mnt/s3fs/immich"
+mount_s3fs "vaultwarden-backups" "/mnt/s3/vaultwarden"
+
+echo "S3FS mounting completed"
+
+# Verify mounts
+echo "Verifying mounts..."
+df -h | grep s3fs
+
+echo "Mount script finished"

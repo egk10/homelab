@@ -1,0 +1,120 @@
+#!/bin/bash
+# Vaultwarden Backup Script for Ceph S3 Storage
+# This script creates compressed backups of Vaultwarden data and stores them in Ceph S3
+
+# Configuration
+BACKUP_SOURCE="/mnt/s3/vaultwarden"
+BACKUP_NAME="vaultwarden-backup-$(date +%Y%m%d-%H%M%S)"
+TEMP_DIR="/tmp/vaultwarden-backup"
+RETENTION_DAYS=7
+
+# Ceph S3 Configuration - Replace with your actual values
+S3_BUCKET="vaultwarden-backups"
+S3_ENDPOINT="http://your-ceph-rgw-ip:80"
+S3_ACCESS_KEY="your-s3-access-key"
+S3_SECRET_KEY="your-s3-secret-key"
+
+# Logging
+LOG_FILE="/var/log/vaultwarden-backup.log"
+exec 1> >(tee -a "$LOG_FILE")
+exec 2>&1
+
+echo "$(date): Starting Vaultwarden backup to Ceph S3"
+
+# Create temporary directory
+mkdir -p "$TEMP_DIR"
+
+# Create backup archive
+echo "$(date): Creating backup archive..."
+tar -czf "$TEMP_DIR/$BACKUP_NAME.tar.gz" -C "$(dirname $BACKUP_SOURCE)" "$(basename $BACKUP_SOURCE)"
+
+if [ $? -ne 0 ]; then
+    echo "$(date): ERROR: Failed to create backup archive"
+    exit 1
+fi
+
+# Upload to Ceph S3 using boto3
+echo "$(date): Uploading to Ceph S3..."
+python3 -c "
+import boto3
+from botocore.config import Config
+import sys
+import os
+
+try:
+    session = boto3.Session(
+        aws_access_key_id='${S3_ACCESS_KEY}',
+        aws_secret_access_key='${S3_SECRET_KEY}',
+    )
+    
+    s3 = session.client(
+        's3',
+        endpoint_url='${S3_ENDPOINT}',
+        config=Config(signature_version='s3v4'),
+        region_name='us-east-1'
+    )
+    
+    backup_file = '${TEMP_DIR}/${BACKUP_NAME}.tar.gz'
+    key = '${BACKUP_NAME}.tar.gz'
+    
+    print(f'Uploading {backup_file} to s3://${S3_BUCKET}/{key}')
+    s3.upload_file(backup_file, '${S3_BUCKET}', key)
+    print('Upload completed successfully')
+    
+except Exception as e:
+    print(f'Error uploading to S3: {e}')
+    sys.exit(1)
+"
+
+if [ $? -eq 0 ]; then
+    echo "$(date): Backup uploaded successfully"
+    rm -f "$TEMP_DIR/$BACKUP_NAME.tar.gz"
+else
+    echo "$(date): ERROR: Failed to upload backup"
+    exit 1
+fi
+
+# Cleanup old backups
+echo "$(date): Cleaning up old backups (keeping last $RETENTION_DAYS days)..."
+python3 -c "
+import boto3
+from botocore.config import Config
+from datetime import datetime, timedelta
+import sys
+
+try:
+    session = boto3.Session(
+        aws_access_key_id='${S3_ACCESS_KEY}',
+        aws_secret_access_key='${S3_SECRET_KEY}',
+    )
+    
+    s3 = session.client(
+        's3',
+        endpoint_url='${S3_ENDPOINT}',
+        config=Config(signature_version='s3v4'),
+        region_name='us-east-1'
+    )
+    
+    cutoff_date = datetime.now() - timedelta(days=${RETENTION_DAYS})
+    
+    response = s3.list_objects_v2(Bucket='${S3_BUCKET}', Prefix='vaultwarden-backup-')
+    
+    if 'Contents' in response:
+        for obj in response['Contents']:
+            if obj['LastModified'].replace(tzinfo=None) < cutoff_date:
+                print(f'Deleting old backup: {obj[\"Key\"]}')
+                s3.delete_object(Bucket='${S3_BUCKET}', Key=obj['Key'])
+    
+    print('Cleanup completed')
+    
+except Exception as e:
+    print(f'Error during cleanup: {e}')
+    sys.exit(1)
+"
+
+echo "$(date): Vaultwarden backup completed successfully"
+
+# Cleanup temp directory
+rm -rf "$TEMP_DIR"
+
+echo "$(date): Backup process finished"
