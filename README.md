@@ -32,11 +32,17 @@ Self-hosted services running on a homelab server, accessible from anywhere via T
 git clone https://github.com/egk10/homelab.git
 cd homelab
 
-# 2. Configure environment
+# 2. Configure environment - Copy all example files
 cp .env.example .env
 cp docker-compose.example.yml docker-compose.yml
 cp "tailscale nodes.csv.example" "tailscale nodes.csv"
 cp tsdproxy/config/authkey.example tsdproxy/config/authkey
+cp tsdproxy/config/tsdproxy.yaml.example tsdproxy/config/tsdproxy.yaml
+cp scripts/backup_vaultwarden.sh.example scripts/backup_vaultwarden.sh
+cp scripts/mount-s3fs.sh.example scripts/mount-s3fs.sh
+cp s3fs-*.service.example s3fs-nextcloud-data.service
+cp s3fs-immich.service.example s3fs-immich.service  
+cp s3fs-vaultwarden.service.example s3fs-vaultwarden.service
 # Edit all files with your actual credentials and configuration
 
 # 3. Install S3FS services
@@ -62,16 +68,18 @@ homelab/
 ├── 🐳 docker-compose.example.yml   # Service template (copy to docker-compose.yml)
 ├── ⚙️ .env.example                 # Environment template (copy to .env)
 ├── 🛡️ safe-compose.sh              # Safe container management
-├── 🔧 s3fs-*.service               # S3FS auto-mount services
+├── 🔧 s3fs-*.service.example       # S3FS systemd service templates
 ├── 🧪 test3_post_reboot.sh         # Post-reboot verification
 ├── ✅ verify_ceph_storage.sh       # Storage validation
 ├── 🌐 test_tailscale_domains.sh    # Domain access testing
 ├── 🔧 tsdproxy/
 │   └── config/
-│       └── authkey.example         # Tailscale auth template
+│       ├── authkey.example         # Tailscale auth template
+│       └── tsdproxy.yaml.example   # Proxy config template
 └── 📜 scripts/                     # Operational scripts
-    ├── backup_vaultwarden.sh       # Automated backups
+    ├── backup_vaultwarden.sh.example  # Backup script template
     ├── backup_homeassistant.sh
+    ├── mount-s3fs.sh.example       # S3FS mount template
     ├── verify_s3fs_mounts.sh       # Mount verification
     └── create_rgw_user_and_bucket.sh
 ```
@@ -104,6 +112,12 @@ cp .env.example .env                           # Database passwords, tokens
 cp docker-compose.example.yml docker-compose.yml  # Service configuration  
 cp "tailscale nodes.csv.example" "tailscale nodes.csv"  # Device information
 cp tsdproxy/config/authkey.example tsdproxy/config/authkey  # Tailscale auth
+cp tsdproxy/config/tsdproxy.yaml.example tsdproxy/config/tsdproxy.yaml  # Proxy config
+cp scripts/backup_vaultwarden.sh.example scripts/backup_vaultwarden.sh  # Backup script
+cp scripts/mount-s3fs.sh.example scripts/mount-s3fs.sh  # S3FS mount script
+cp s3fs-nextcloud-data.service.example s3fs-nextcloud-data.service  # Systemd services
+cp s3fs-immich.service.example s3fs-immich.service
+cp s3fs-vaultwarden.service.example s3fs-vaultwarden.service
 ```
 
 ### Security Features
