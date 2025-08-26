@@ -2,7 +2,12 @@
 .env
 docker-compose.yml
 tsdproxy/config/authkey
+tsdproxy/config/tsdproxy.yaml
 tailscale nodes.csv
+scripts/backup_vaultwarden.sh
+scripts/mount_cephfs_example.sh
+scripts/mount-s3fs.sh
+s3fs-*.service
 
 # Docker volumes
 docker-volumes/

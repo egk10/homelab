@@ -1,0 +1,35 @@
+#!/bin/bash
+# Example CephFS mount script for homelab
+# Replace the values below with your actual Ceph configuration
+
+# Ceph Configuration - Replace with your actual values
+MONS="ceph-mon1.your-domain.ts.net:6789,ceph-mon2.your-domain.ts.net:6789" # Use your Tailscale hostnames
+CLIENT_NAME="admin"
+SECRETFILE="/etc/ceph/ceph.client.admin.keyring" # or path to client keyring
+MNT="/mnt/ceph/nextcloud"
+
+# Install ceph-fuse if not present
+if ! command -v ceph-fuse &> /dev/null; then
+    echo "Installing ceph-fuse..."
+    sudo apt update && sudo apt install -y ceph-fuse
+fi
+
+# Create mount point
+sudo mkdir -p "$MNT"
+
+# Mount CephFS
+echo "Mounting CephFS to $MNT..."
+mount -t ceph "$MONS:/" "$MNT" -o name=$CLIENT_NAME,secretfile=$SECRETFILE,_netdev
+
+if [ $? -eq 0 ]; then
+    echo "CephFS mounted successfully at $MNT"
+    df -h "$MNT"
+else
+    echo "Failed to mount CephFS"
+    exit 1
+fi
+
+# Optional: Add to /etc/fstab for persistent mounting
+echo ""
+echo "To make this mount persistent, add this line to /etc/fstab:"
+echo "$MONS:/ $MNT ceph name=$CLIENT_NAME,secretfile=$SECRETFILE,_netdev,noatime 0 0"

@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=forking
-ExecStart=/usr/bin/s3fs immich-uploads /mnt/s3fs/immich -o passwd_file=/home/egk/.passwd-s3fs -o url=http://100.90.57.27:80 -o use_path_request_style -o allow_other
+ExecStart=/usr/bin/s3fs immich-uploads /mnt/s3fs/immich -o passwd_file=/home/your-user/.passwd-s3fs -o url=http://your-ceph-rgw-ip:80 -o use_path_request_style -o allow_other
 ExecStop=/bin/fusermount -u /mnt/s3fs/immich
 Restart=on-failure
 RestartSec=5

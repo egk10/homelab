@@ -71,7 +71,7 @@ System auto-recovers, but for verification:
 
 ### Service Access
 - **Local Access**: http://localhost:[port]
-- **Remote Access**: https://[service].velociraptor-scylla.ts.net
+- **Remote Access**: https://[service].your-tailscale-domain.ts.net
 - **Ports**: Nextcloud(8081), Immich(2283), Vaultwarden(8083), HomeAssistant(8123)
 
 ## 📋 Testing Validation

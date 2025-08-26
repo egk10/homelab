@@ -8,7 +8,7 @@ docker:
 tailscale:
   providers:
     default:
-      authKey: "tskey-auth-kmDCJkd73m11CNTRL-7WsUnMFuhjMuC5DtL4JxiMiRjYkeUATpZ"
+      authKey: "tskey-auth-xxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
       authKeyFile: "/config/authkey"
       controlUrl: "https://controlplane.tailscale.com"
   dataDir: /data/

@@ -20,7 +20,7 @@ tsdproxy is getting "invalid key: unable to validate API key" errors even with a
 
 ### Option 1: Generate a fresh reusable auth key
 1. Go to https://login.tailscale.com/admin/settings/keys
-2. **Revoke** the current key: `tskey-auth-kmDCJkd73m11CNTRL-7WsUnMFuhjMuC5DtL4JxiMiRjYkeUATpZ`
+2. **Revoke** the current key: `tskey-auth-xxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 3. Generate a new key with:
    - **Reusable**: YES (very important)
    - **Ephemeral**: YES (nodes will be removed when tsdproxy stops)
@@ -76,6 +76,6 @@ caddy:
 1. Try Option 1 (fresh reusable key) first
 2. If that fails, implement Option 2 (Caddy)
 3. Once HTTPS is working, test:
-   - https://vaultwarden.velociraptor-scylla.ts.net
-   - https://nextcloud.velociraptor-scylla.ts.net (for admin user creation)
-   - https://immich.velociraptor-scylla.ts.net
+   - https://vaultwarden.your-tailscale-domain.ts.net
+   - https://nextcloud.your-tailscale-domain.ts.net (for admin user creation)
+   - https://immich.your-tailscale-domain.ts.net
