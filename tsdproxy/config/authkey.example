@@ -1,4 +1,6 @@
-# Tailscale Auth Key
-# Replace this with your actual Tailscale auth key
+# Tailscale Auth Key - SINGLE LOCATION FOR AUTH
+# This is the ONLY place you need to put your Tailscale auth key
+# Replace the line below with your actual Tailscale auth key
 # Get your auth key from: https://login.tailscale.com/admin/settings/keys
+# Make sure to set it as REUSABLE and EPHEMERAL
 tskey-auth-xxxxxxxxxxxxxxxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

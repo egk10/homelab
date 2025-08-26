@@ -111,7 +111,7 @@ This repository uses example files to protect sensitive information:
 cp .env.example .env                           # Database passwords, tokens
 cp docker-compose.example.yml docker-compose.yml  # Service configuration  
 cp "tailscale nodes.csv.example" "tailscale nodes.csv"  # Device information
-cp tsdproxy/config/authkey.example tsdproxy/config/authkey  # Tailscale auth
+cp tsdproxy/config/authkey.example tsdproxy/config/authkey  # Tailscale auth (ONLY location needed)
 cp tsdproxy/config/tsdproxy.yaml.example tsdproxy/config/tsdproxy.yaml  # Proxy config
 cp scripts/backup_vaultwarden.sh.example scripts/backup_vaultwarden.sh  # Backup script
 cp scripts/mount-s3fs.sh.example scripts/mount-s3fs.sh  # S3FS mount script

@@ -25,14 +25,13 @@ tsdproxy is getting "invalid key: unable to validate API key" errors even with a
    - **Reusable**: YES (very important)
    - **Ephemeral**: YES (nodes will be removed when tsdproxy stops)
    - **Expiry**: Set to 90 days or longer
-4. Update both locations:
+4. Update the auth key file:
    ```bash
    # Update auth key file
    echo "YOUR_NEW_REUSABLE_KEY" > tsdproxy/config/authkey
    chmod 600 tsdproxy/config/authkey
    
-   # Update docker-compose.yml TAILSCALE_AUTH_KEY environment variable
-   # Then restart tsdproxy
+   # Restart tsdproxy
    sudo rm -rf tsdproxy/datadir/default/*
    docker compose up -d --no-deps --force-recreate tsdproxy
    ```
