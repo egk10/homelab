@@ -1,0 +1,17 @@
+[Unit]
+Description=Homelab Unified Backup Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=egk
+Group=egk
+Environment=HOME=/home/egk
+WorkingDirectory=/home/egk/homelab
+ExecStart=/home/egk/homelab/scripts/unified_backup.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

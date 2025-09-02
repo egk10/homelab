@@ -48,3 +48,8 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+test*.sh
+
+# Test files (contain domain names)
+test*.sh
+test3*.sh

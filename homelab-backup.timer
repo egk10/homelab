@@ -1,0 +1,11 @@
+[Unit]
+Description=Run homelab backup daily
+Requires=homelab-backup.service
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target
