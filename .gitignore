@@ -1,22 +1,22 @@
 # Environment files with secrets
 .env
-docker-compose.yml
+config/docker/docker-compose.yml
 tsdproxy/config/authkey
 tsdproxy/config/tsdproxy.yaml
 tailscale nodes.csv
-scripts/backup_vaultwarden.sh
-scripts/mount_cephfs_example.sh
-scripts/mount-s3fs.sh
-s3fs-*.service
+scripts/backup/backup_vaultwarden.sh
+scripts/setup/mount-s3fs.sh
+scripts/setup/mount_cephfs_example.sh
+services/systemd/s3fs-*.service
 
 # Ceph configuration files with sensitive data
-ceph.client.admin.keyring
-ceph.conf
-ceph_integration_README.md
-scripts/install_ceph_admin_on_laptop.sh
-verify_ceph_storage.sh
-ceph.client.admin.keyring
-ceph.conf
+config/ceph/ceph.client.admin.keyring
+config/ceph/ceph.conf
+docs/ceph/ceph_integration_README.md
+scripts/setup/install_ceph_admin_on_laptop.sh
+tools/verify_ceph_storage.sh
+config/ceph/ceph.client.admin.keyring
+config/ceph/ceph.conf
 
 # Docker volumes
 docker-volumes/

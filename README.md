@@ -34,19 +34,19 @@ cd homelab
 
 # 2. Configure environment - Copy all example files
 cp .env.example .env
-cp docker-compose.example.yml docker-compose.yml
-cp "tailscale nodes.csv.example" "tailscale nodes.csv"
+cp config/docker/docker-compose.example.yml config/docker/docker-compose.yml
+cp "config/tailscale/nodes.csv.example" "tailscale nodes.csv"
 cp tsdproxy/config/authkey.example tsdproxy/config/authkey
 cp tsdproxy/config/tsdproxy.yaml.example tsdproxy/config/tsdproxy.yaml
-cp scripts/backup_vaultwarden.sh.example scripts/backup_vaultwarden.sh
-cp scripts/mount-s3fs.sh.example scripts/mount-s3fs.sh
-cp s3fs-*.service.example s3fs-nextcloud-data.service
-cp s3fs-immich.service.example s3fs-immich.service  
-cp s3fs-vaultwarden.service.example s3fs-vaultwarden.service
+cp scripts/backup/backup_vaultwarden.sh.example scripts/backup/backup_vaultwarden.sh
+cp scripts/setup/mount-s3fs.sh.example scripts/setup/mount-s3fs.sh
+cp services/systemd/s3fs-*.service.example services/systemd/s3fs-nextcloud-data.service
+cp services/systemd/s3fs-immich.service.example services/systemd/s3fs-immich.service  
+cp services/systemd/s3fs-vaultwarden.service.example services/systemd/s3fs-vaultwarden.service
 # Edit all files with your actual credentials and configuration
 
 # 3. Install S3FS services
-sudo cp s3fs-*.service /etc/systemd/system/
+sudo cp services/systemd/s3fs-*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable s3fs-nextcloud-data.service s3fs-immich.service s3fs-vaultwarden.service
 
@@ -86,10 +86,10 @@ This homelab includes a comprehensive automated backup system for all services:
 - **Retention:** Last 30 backups maintained
 - **Verification:** Automatic integrity checks
 
-**Backup Script:** `scripts/backup_vaultwarden.sh`
+**Backup Script:** `scripts/backup/backup_vaultwarden.sh`
 ```bash
 # Manual backup execution
-./scripts/backup_vaultwarden.sh
+./scripts/backup/backup_vaultwarden.sh
 
 # Check backup status
 ls -la /mnt/s3/vaultwarden/db_*.sqlite3
@@ -128,24 +128,32 @@ docker compose start vaultwarden
 
 ```
 homelab/
-├── 📋 PRODUCTION_READY.md          # Complete production documentation
-├── 🐳 docker-compose.example.yml   # Service template (copy to docker-compose.yml)
-├── ⚙️ .env.example                 # Environment template (copy to .env)
-├── 🛡️ safe-compose.sh              # Safe container management
-├── 🔧 s3fs-*.service.example       # S3FS systemd service templates
-├── 🧪 test3_post_reboot.sh         # Post-reboot verification
-├── ✅ verify_ceph_storage.sh       # Storage validation
-├── 🌐 test_tailscale_domains.sh    # Domain access testing
-├── 🔧 tsdproxy/
-│   └── config/
-│       ├── authkey.example         # Tailscale auth template
-│       └── tsdproxy.yaml.example   # Proxy config template
-└── 📜 scripts/                     # Operational scripts
-    ├── backup_vaultwarden.sh.example  # Backup script template
-    ├── backup_homeassistant.sh
-    ├── mount-s3fs.sh.example       # S3FS mount template
-    ├── verify_s3fs_mounts.sh       # Mount verification
-    └── create_rgw_user_and_bucket.sh
+├── 📋 README.md                          # Main documentation
+├── ⚙️ .env.example                       # Environment template
+├── 🛡️ .gitignore                        # Git ignore rules
+├── 🐳 config/docker/                     # Docker configurations
+│   ├── docker-compose.yml               # Service definitions
+│   └── docker-compose.example.yml       # Template for new deployments
+├── 🔧 config/                            # Configuration files
+│   ├── ceph/                            # Ceph storage configs
+│   ├── tailscale/                       # Tailscale network configs
+│   └── nextcloud/                       # Nextcloud specific configs
+├── �️ services/                          # Service configurations
+│   ├── systemd/                         # Systemd service files
+│   └── homeassistant/                   # Home Assistant configs
+├── 📜 scripts/                           # Operational scripts
+│   ├── backup/                          # Backup automation
+│   ├── setup/                           # Initial setup scripts
+│   ├── maintenance/                     # Maintenance utilities
+│   └── monitoring/                      # Health monitoring
+├── 📚 docs/                              # Documentation
+│   ├── guides/                          # User guides
+│   ├── troubleshooting/                 # Troubleshooting docs
+│   └── ceph/                            # Ceph-specific docs
+├── 🔨 tools/                             # Utility tools
+├── 🌐 tsdproxy/                          # Tailscale proxy config
+├── 📝 logs/                              # Application logs
+└── 💾 backups/                           # Backup storage
 ```
 
 ## 🛡️ Production Features
@@ -195,16 +203,16 @@ cp s3fs-vaultwarden.service.example s3fs-vaultwarden.service
 ### Daily Management
 ```bash
 # Check system status
-./safe-compose.sh ps
+./tools/safe-compose.sh ps
 
 # View service logs  
 docker-compose logs -f nextcloud
 
 # Verify storage health
-./verify_ceph_storage.sh
+./tools/verify_ceph_storage.sh
 
 # Test remote access
-./test_tailscale_domains.sh
+./tools/test_tailscale_domains.sh
 ```
 
 ### After Reboot
