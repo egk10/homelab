@@ -315,6 +315,15 @@ services:
       # Fix mobile sync issues
       DISABLE_ICON_DOWNLOAD: "false"
       RELOAD_TEMPLATES: "true"
+      # Additional mobile compatibility fixes
+      INVITATION_ORG_NAME: "Vaultwarden"
+      HIBP_API_KEY: ""
+      # Disable problematic features that can cause mobile sync issues
+      DISABLE_ADMIN_TOKEN: "false"
+      WEB_VAULT_FOLDER: "web-vault/"
+      # Optimize for web access instead of mobile apps
+      ROCKET_WORKERS: 10
+      EXPERIMENTAL_CLIENT_FEATURE_FLAGS: "fido2-vault-credentials"
     volumes:
       # Use S3 mounted storage instead of local volumes
       - /mnt/s3/vaultwarden:/data

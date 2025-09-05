@@ -60,7 +60,71 @@ sudo systemctl enable s3fs-nextcloud-data.service s3fs-immich.service s3fs-vault
 - **Vaultwarden**: https://vaultwarden.your-tailscale-domain.ts.net
 - **Home Assistant**: https://homeassistant.your-tailscale-domain.ts.net
 
-## 📁 Repository Structure
+## � Mobile Access Recommendation
+
+**Recommended Mobile App:** [Keyguard](https://github.com/AChep/keyguard-app)  
+Keyguard is an open-source Bitwarden-compatible client that works reliably with self-hosted Vaultwarden instances. It provides full sync functionality without the restrictions imposed by the official Bitwarden mobile app on self-hosted servers.
+
+### Keyguard Setup:
+1. Download from [F-Droid](https://f-droid.org/packages/com.artemchep.keyguard/) or [GitHub Releases](https://github.com/AChep/keyguard-app/releases)
+2. Add your Vaultwarden server URL
+3. Login with your credentials
+4. Enjoy seamless password synchronization
+
+**Official Setup Instructions:** [Keyguard GitHub](https://github.com/AChep/keyguard-app?tab=readme-ov-file#keyguard)
+
+## 🔄 Backup & Recovery
+
+### Automated Backup System
+
+This homelab includes a comprehensive automated backup system for all services:
+
+#### Vaultwarden Backup
+- **Frequency:** Daily via systemd timer
+- **Storage:** Ceph S3 bucket (`vaultwarden-backups`)
+- **Method:** SQLite database dumps with WAL mode
+- **Retention:** Last 30 backups maintained
+- **Verification:** Automatic integrity checks
+
+**Backup Script:** `scripts/backup_vaultwarden.sh`
+```bash
+# Manual backup execution
+./scripts/backup_vaultwarden.sh
+
+# Check backup status
+ls -la /mnt/s3/vaultwarden/db_*.sqlite3
+```
+
+#### Other Services Backup
+- **Nextcloud:** User data stored in Ceph S3 (`nextcloud-data` bucket)
+- **Immich:** Photos/videos stored in Ceph S3 (`immich-uploads` bucket)
+- **Home Assistant:** Configuration backed up via automated scripts
+
+### Backup Verification
+```bash
+# Test backup restoration (simulation)
+./scripts/backup_vaultwarden.sh
+
+# Verify backup integrity
+sqlite3 /mnt/s3/vaultwarden/db_20250101_120000.sqlite3 "PRAGMA integrity_check;"
+```
+
+### Emergency Recovery
+```bash
+# Stop Vaultwarden
+docker compose stop vaultwarden
+
+# Restore from backup
+cp /mnt/s3/vaultwarden/db_20250101_120000.sqlite3 /mnt/s3/vaultwarden/db.sqlite3
+
+# Start Vaultwarden
+docker compose start vaultwarden
+```
+
+### Backup Monitoring
+- **Logs:** `/home/egk/homelab/logs/backup_*.log`
+- **Status:** Check systemd timer status
+- **Storage:** Monitor Ceph S3 bucket usage
 
 ```
 homelab/
