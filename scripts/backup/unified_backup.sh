@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Load environment variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 if [ -f "$PROJECT_ROOT/.env" ]; then
     set -a
@@ -51,6 +51,8 @@ command -v docker &>/dev/null || error_exit "docker not installed"
 if ! restic snapshots &>/dev/null; then
     log "📦 Initializing restic repository..."
     restic init || error_exit "Failed to initialize restic repository"
+else
+    log "📦 Using existing restic repository..."
 fi
 
 # Create backup directory

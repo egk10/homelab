@@ -9,7 +9,7 @@ User=egk
 Group=egk
 Environment=HOME=/home/egk
 WorkingDirectory=/home/egk/homelab
-ExecStart=/home/egk/homelab/scripts/unified_backup.sh
+ExecStart=/home/egk/homelab/scripts/backup/unified_backup.sh
 StandardOutput=journal
 StandardError=journal
 
