@@ -218,9 +218,9 @@ services:
       # Admin account configuration
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER:-admin}
       NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
-      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_DOMAIN:-nextcloud.your-tailscale-domain.ts.net}
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_DOMAIN:-nextcloud.velociraptor-scylla.ts.net}
       OVERWRITEPROTOCOL: https
-      OVERWRITEHOST: ${NEXTCLOUD_DOMAIN:-nextcloud.your-tailscale-domain.ts.net}
+      OVERWRITEHOST: ${NEXTCLOUD_DOMAIN:-nextcloud.velociraptor-scylla.ts.net}
       REDIS_HOST: immich-redis
       REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
       PHP_MEMORY_LIMIT: 1024M
@@ -273,6 +273,36 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ================================
+  # MOUNT HEALTH CHECK SERVICES
+  # ================================
+  s3fs-healthcheck:
+    image: alpine:latest
+    container_name: s3fs_healthcheck
+    hostname: s3fs-healthcheck
+    volumes:
+      - /mnt/s3/vaultwarden:/check/vaultwarden:ro
+      - /mnt/s3fs/nextcloud-data:/check/nextcloud:ro
+      - /mnt/s3fs/immich:/check/immich:ro
+      - ./scripts/maintenance:/scripts:ro
+    command: >
+      sh -c "
+        echo '🔍 Checking S3FS Vaultwarden mount...';
+        if ! mountpoint -q /check/vaultwarden; then
+          echo '❌ Vaultwarden mount not ready';
+          exit 1;
+        fi;
+        if ! ls /check/vaultwarden >/dev/null 2>&1; then
+          echo '❌ Vaultwarden mount not accessible';
+          exit 1;
+        fi;
+        echo '✅ Vaultwarden S3FS mount is healthy';
+        exit 0
+      "
+    restart: "no"
+    networks:
+      - web
+
   vaultwarden:
     image: vaultwarden/server:1.32.0-alpine
     container_name: vaultwarden
@@ -291,9 +321,9 @@ services:
       # Mobile app compatibility fixes
       WEBSOCKET_ADDRESS: "0.0.0.0"
       WEBSOCKET_PORT: 3012
-      PUSH_ENABLED: "false"
-      PUSH_INSTALLATION_ID: ""
-      PUSH_INSTALLATION_KEY: ""
+      PUSH_ENABLED: ${PUSH_ENABLED:-false}
+      PUSH_INSTALLATION_ID: ${PUSH_INSTALLATION_ID}
+      PUSH_INSTALLATION_KEY: ${PUSH_INSTALLATION_KEY}
       # API compatibility
       ORG_EVENTS_ENABLED: "true"
       EVENTS_DAYS_RETAIN: 365
@@ -332,16 +362,18 @@ services:
       - "8083:80"
       - "3012:3012"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1/alive"]
+      test: ["CMD", "sh", "-c", "mountpoint -q /data && wget --no-verbose --tries=1 --spider http://127.0.0.1/alive"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 60s
+    depends_on:
+      s3fs-healthcheck:
+        condition: service_completed_successfully
     labels:
       - "tsdproxy.enable=true"
       - "tsdproxy.name=vaultwarden"
       - "tsdproxy.container_port=80"
-      - "tsdproxy.scheme=http"
       - "tsdproxy.websocket_port=3012"
       - "tsdproxy.websocket_path=/notifications/hub"
       - "tsdproxy.ephemeral=true"
