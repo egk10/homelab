@@ -1,0 +1,12 @@
+[Unit]
+Description=Bound Immich media backup history while preserving baseline metadata
+After=network-online.target
+
+[Service]
+Type=oneshot
+UMask=0077
+EnvironmentFile=-/home/egk/.config/immich-backup-worker.env
+ExecStart=/usr/bin/python3 /home/egk/homelab/reliability/backup/immich_retention.py
+TimeoutStartSec=3h
+Nice=10
+IOSchedulingClass=idle

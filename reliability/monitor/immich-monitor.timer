@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Immich health and completed backup every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+Unit=immich-monitor.service
+
+[Install]
+WantedBy=timers.target

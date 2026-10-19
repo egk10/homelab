@@ -1,0 +1,10 @@
+[Unit]
+Description=Monthly isolated Immich restore rehearsal
+
+[Timer]
+OnCalendar=*-*-01 08:30:00
+RandomizedDelaySec=10m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

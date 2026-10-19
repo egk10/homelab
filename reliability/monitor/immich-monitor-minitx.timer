@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Immich and minitx backup/restore health every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+Unit=immich-monitor-minitx.service
+
+[Install]
+WantedBy=timers.target

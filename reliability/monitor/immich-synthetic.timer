@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily gated Immich end-to-end upload and recovery check
+
+[Timer]
+OnCalendar=*-*-* 06:15:00
+RandomizedDelaySec=5m
+Persistent=false
+Unit=immich-synthetic.service
+
+[Install]
+WantedBy=timers.target

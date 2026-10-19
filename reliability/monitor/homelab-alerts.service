@@ -1,0 +1,12 @@
+[Unit]
+Description=Alertas de Immich, Bitwarden, Ceph e homelab no Telegram
+After=network-online.target integra-botinterno.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=egk
+Environment=EGK_NODE_SSH_PORT=2222
+ExecStart=/usr/bin/python3 /opt/egkcluster/homelab-alerts.py
+Nice=10
+TimeoutStartSec=180

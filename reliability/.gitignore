@@ -1,0 +1,10 @@
+# Private runtime evidence and photo inventories stay local.
+**/__pycache__/
+recovery/*.json
+upgrade/*.json
+ceph/*.json
+ceph/*.jsonl
+ceph/*.yaml
+ceph/ssh_config.*
+monitor/state.json
+monitor/events.jsonl

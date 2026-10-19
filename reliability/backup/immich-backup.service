@@ -1,0 +1,16 @@
+[Unit]
+Description=Immich database and media encrypted backup for configured worker
+After=network-online.target
+StartLimitIntervalSec=45min
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+UMask=0077
+EnvironmentFile=-/home/egk/.config/immich-backup-worker.env
+ExecStart=/usr/bin/python3 /home/egk/homelab/reliability/backup/immich_backup.py --media
+TimeoutStartSec=3h
+Nice=10
+IOSchedulingClass=idle
+Restart=on-failure
+RestartSec=10min

@@ -1,0 +1,15 @@
+apiVersion: 1
+
+# Provision Prometheus as default datasource
+# Set PROMETHEUS_URL environment variable to override URL.
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: ${PROMETHEUS_URL}
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+    version: 1

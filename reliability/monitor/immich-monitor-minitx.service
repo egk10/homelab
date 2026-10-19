@@ -1,0 +1,17 @@
+[Unit]
+Description=Immich health and local minitx backup/restore monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/egk/homelab/reliability/monitor
+ExecStart=/usr/bin/python3 /home/egk/homelab/reliability/monitor/immich_monitor.py
+Environment=IMMICH_BACKUP_MAX_AGE_HOURS=2
+Environment=IMMICH_WORKER_BACKUP_HOST=local
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/egk/homelab/reliability/monitor /home/egk/.local/state/immich-monitor
+PrivateTmp=true
